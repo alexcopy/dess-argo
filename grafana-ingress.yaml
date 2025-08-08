@@ -1,0 +1,43 @@
+# grafana-values.yaml
+admin:
+  existingSecret: grafana-admin-secret
+  userKey: admin-user
+  passwordKey: admin-password
+
+# 2. Хранилище данных Grafana
+persistence:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+
+# 3. Сервис Grafana
+service:
+  type: ClusterIP
+  port: 80
+
+# 4. Provisioning: Datasource Loki
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://loki-stack.logging.svc.cluster.local:3100
+        # Если Loki по HTTP, без TLS:
+        jsonData:
+          maxLines: 1000
+        # Если используете basicAuth или другие опции, добавьте их сюда
+
+# 5. Автозагрузить ваш dashboard по GNet ID (как пример)
+dashboards:
+  default:
+    loki-overview:
+      gnetId: 13639
+      revision: 1
+      datasource: Loki
+
+# 6. (опционально) Отключить встроенную Loki, если она есть в этом чарте
+loki:
+  enabled: false
