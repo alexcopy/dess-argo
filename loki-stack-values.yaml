@@ -1,0 +1,58 @@
+# --------------- Loki -------------------------------------------------------
+loki:
+  config:
+    auth_enabled: false
+    table_manager:
+      retention_deletes_enabled: true
+      retention_period: 168h      # 7 дней
+    schema_config:
+      configs:
+        - from: "2020-10-15"
+          store: boltdb-shipper
+          object_store: filesystem
+          schema: v11
+          index:
+            prefix: index_
+            period: 24h
+
+# --------------- Promtail ---------------------------------------------------
+promtail:
+  config:
+    clients:
+      - url: http://loki-stack.logging.svc.cluster.local:3100/loki/api/v1/push
+
+    scrape_configs:
+      # стандартный kubernetes-pods джоб трогать не нужно — он заберёт stdout sidecar’а
+      # ----------------------------------------------------------------------
+      - job_name: dessmonitor_file
+        static_configs:
+          - targets: ['localhost']
+            labels:
+              job: dessmonitor_file
+              env: prod
+              __path__: /var/log/dess/*.log
+        pipeline_stages:
+          - logfmt
+
+  positions:
+    filename: /var/run/promtail/positions.yaml
+
+  # ------ hostPath-каталог c логами + tmp-том под positions ------------------
+  extraVolumes:
+    - name: dess-logs
+      hostPath:
+        path: /srv/dessmonitor/logs
+        type: DirectoryOrCreate
+    - name: promtail-pos
+      emptyDir: { }
+
+  extraVolumeMounts:
+    - name: dess-logs
+      mountPath: /var/log/dess
+      readOnly: true
+    - name: promtail-pos
+      mountPath: /var/run/promtail
+
+# --------------- Встроенная Grafana не нужна --------------------------------
+grafana:
+  enabled: false
